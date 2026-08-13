@@ -14,8 +14,6 @@
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
-    <!-- JSZip CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
     <style>
         :root {
@@ -418,73 +416,33 @@
             }
         }
 
-        downloadBtn.addEventListener('click', async () => {
+        downloadBtn.addEventListener('click', () => {
             if (extractedLinks.length === 0) return;
             
-            // Estado de carregamento do botão
-            downloadBtn.disabled = true;
-            downloadBtn.innerHTML = `
-                <div class="spinner" style="display:inline-block; width:20px; height:20px; border-width:2px; margin-right:10px; margin-bottom:0; vertical-align:middle;"></div>
-                A preparar ZIP...
-            `;
-            
-            try {
-                const zip = new JSZip();
-                
-                for (let i = 0; i < extractedLinks.length; i++) {
-                    const originalUrl = extractedLinks[i];
-                    // Usar proxy CORS para ultrapassar bloqueios do navegador e conseguir fazer download da data
-                    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(originalUrl);
-                    
-                    dzTitle.style.display = 'block';
-                    dzText.style.display = 'block';
-                    dzTitle.textContent = "A fazer download das faturas...";
-                    dzText.textContent = `A transferir fatura ${i+1} de ${extractedLinks.length}...`;
-                    
-                    const response = await fetch(proxyUrl);
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        zip.file(`fatura_${i+1}.pdf`, blob);
-                    } else {
-                        console.error("Falha ao descarregar a fatura: ", originalUrl);
-                    }
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i >= extractedLinks.length) {
+                    clearInterval(interval);
+                    downloadBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Concluído!
+                    `;
+                    downloadBtn.style.background = 'var(--success)';
+                    return;
                 }
                 
-                dzText.textContent = "A compactar ficheiros para ZIP...";
-                const zipBlob = await zip.generateAsync({type:"blob"});
-                
-                // Descarregar o ZIP
-                const downloadUrl = URL.createObjectURL(zipBlob);
                 const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = 'faturas_airbnb.zip';
+                a.href = extractedLinks[i];
+                a.download = ''; 
+                a.target = '_blank';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                URL.revokeObjectURL(downloadUrl);
                 
-                dzText.textContent = "ZIP criado com sucesso!";
-                
-                downloadBtn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                    Concluído!
-                `;
-                downloadBtn.style.background = 'var(--success)';
-                
-            } catch (error) {
-                alert("Ocorreu um erro ao gerar o ZIP. Pode haver bloqueios do lado do servidor.");
-                console.error(error);
-                
-                downloadBtn.disabled = false;
-                downloadBtn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Tentar Novamente
-                `;
-            }
+                i++;
+            }, 500);
         });
 
         resetBtn.addEventListener('click', resetUI);
